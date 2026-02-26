@@ -283,9 +283,10 @@ lazy val turbine = project
     Compile / packageSrc / publishArtifact := true,
     autoScalaLibrary := false,
     crossPaths := false,
-    // Must set Java home to fork on compile and see errors in sbt compile
     crossVersion := CrossVersion.disabled,
-    Compile / fullClasspath := Nil,
+    Compile / javaOptions ++= toolchainJavaOptions,
+    Compile / javacOptions ++= toolchainJavaOptions,
+    Compile / javacOptions += "-proc:full",
     libraryDependencies ++= List(
       V.guava,
       "com.google.auto.value" % "auto-value" % "1.11.1",
@@ -615,6 +616,13 @@ lazy val metals = project
       ("org.virtuslab.scala-cli" % "scala-cli-bsp" % V.scalaCli)
         .exclude("ch.epfl.scala", "bsp4j"),
       "com.google.googlejavaformat" % "google-java-format" % "1.28.0",
+      // For test frameworks
+      "ch.epfl.scala" %% "bloop-config" % V.bloopConfig,
+      // For Bazel Native BSP (gRPC BES server)
+      "io.grpc" % "grpc-netty-shaded" % V.grpcVersion,
+      "io.grpc" % "grpc-stub" % V.grpcVersion,
+      "io.grpc" % "grpc-protobuf" % V.grpcVersion,
+      "com.google.api.grpc" % "proto-google-common-protos" % "2.48.0",
     ),
     Compile / resourceGenerators += packageJavaHeaderCompiler,
     Compile / resourceGenerators += Def.task {

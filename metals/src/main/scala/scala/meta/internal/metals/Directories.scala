@@ -28,6 +28,8 @@ object Directories {
     RelativePath(".bazelbsp")
   def dbBsp: RelativePath =
     RelativePath(".bazelbsp") // Same as bazelBsp
+  def bazelNative: RelativePath =
+    RelativePath(".bazel-native-bsp")
   def bsp: RelativePath =
     RelativePath(".bsp")
   def metalsSettings: RelativePath =
