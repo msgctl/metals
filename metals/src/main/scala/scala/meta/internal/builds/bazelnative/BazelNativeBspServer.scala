@@ -52,14 +52,12 @@ class BazelNativeBspServer(
   def setClient(client: ch.epfl.scala.bsp4j.BuildClient): Unit =
     buildClient = Some(client)
 
-
   override def onBuildTaskStart(params: TaskStartParams): Unit =
     buildClient.foreach(_.onBuildTaskStart(params))
   override def onBuildTaskFinish(params: TaskFinishParams): Unit =
     buildClient.foreach(_.onBuildTaskFinish(params))
   override def onBuildTaskProgress(params: TaskProgressParams): Unit =
     buildClient.foreach(_.onBuildTaskProgress(params))
-
 
   override def buildInitialize(
       params: InitializeBuildParams
@@ -158,7 +156,6 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetCompile(
       params: CompileParams
   ): CompletableFuture[CompileResult] = {
@@ -204,7 +201,6 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetSources(
       params: SourcesParams
   ): CompletableFuture[SourcesResult] = {
@@ -229,7 +225,6 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetResources(
       params: ResourcesParams
   ): CompletableFuture[ResourcesResult] = {
@@ -244,7 +239,6 @@ class BazelNativeBspServer(
       new ResourcesResult(items.asJava)
     }
   }
-
 
   override def buildTargetDependencySources(
       params: DependencySourcesParams
@@ -267,7 +261,6 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetInverseSources(
       params: InverseSourcesParams
   ): CompletableFuture[InverseSourcesResult] = {
@@ -282,13 +275,11 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetCleanCache(
       params: CleanCacheParams
   ): CompletableFuture[CleanCacheResult] = {
     CompletableFuture.completedFuture(new CleanCacheResult(true))
   }
-
 
   override def buildTargetRun(
       params: RunParams
@@ -314,7 +305,6 @@ class BazelNativeBspServer(
     f
   }
 
-
   override def buildTargetScalacOptions(
       params: ScalacOptionsParams
   ): CompletableFuture[ScalacOptionsResult] = {
@@ -324,10 +314,12 @@ class BazelNativeBspServer(
           val label = extractLabel(id)
           val info = targetData.get(label)
 
-          val opts = info
+          val rawOpts = info
             .flatMap(_.scalaTargetInfo)
             .map(_.scalacOpts)
             .getOrElse(Nil)
+
+          val opts = withSemanticdbTargetroot(rawOpts, label)
 
           val cp = info
             .flatMap(_.jvmTargetInfo)
@@ -379,7 +371,6 @@ class BazelNativeBspServer(
     )
   }
 
-
   override def buildTargetJavacOptions(
       params: JavacOptionsParams
   ): CompletableFuture[JavacOptionsResult] = {
@@ -411,7 +402,6 @@ class BazelNativeBspServer(
       )
     )
   }
-
 
   override def buildTargetJvmRunEnvironment(
       params: JvmRunEnvironmentParams
@@ -451,7 +441,6 @@ class BazelNativeBspServer(
     }
   }
 
-
   override def buildTargetDependencyModules(
       params: DependencyModulesParams
   ): CompletableFuture[DependencyModulesResult] = {
@@ -471,7 +460,6 @@ class BazelNativeBspServer(
       new DependencyModulesResult(items.asJava)
     }
   }
-
 
   override def buildTargetOutputPaths(
       params: OutputPathsParams
@@ -677,6 +665,29 @@ class BazelNativeBspServer(
       else workspace.resolve(fl.path).toNIO
     Option(resolved.getParent).getOrElse(resolved).toUri.toString
   }
+  private def withSemanticdbTargetroot(
+      opts: List[String],
+      label: String,
+  ): List[String] = {
+    if (
+      bazelBinDir.isEmpty ||
+      opts.exists(_.startsWith("-P:semanticdb:targetroot:"))
+    )
+      return opts
+
+    val idx = label.indexOf(':')
+    if (idx < 0) return opts
+    val pkg = label.substring(0, idx).stripPrefix("//")
+    val name = label.substring(idx + 1)
+
+    val binPath = java.nio.file.Paths.get(bazelBinDir)
+    val sdbPath =
+      if (pkg.nonEmpty)
+        binPath.resolve(pkg).resolve("_semanticdb").resolve(name)
+      else binPath.resolve("_semanticdb").resolve(name)
+    opts :+ s"-P:semanticdb:targetroot:$sdbPath"
+  }
+
   private def fallbackClassDir: String =
     if (bazelBinDir.nonEmpty)
       java.nio.file.Paths.get(bazelBinDir).toUri.toString
